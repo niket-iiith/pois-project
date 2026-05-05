@@ -242,7 +242,10 @@ def pa11_mitm():
 @app.route('/api/pa12/demo', methods=['POST'])
 def pa12_demo():
     data = request.json or {}
-    message = data.get('message', 42)
+    try:
+        message = int(data.get('message', 42))
+    except (ValueError, TypeError):
+        message = 42
     
     from crypto.pa12_rsa import rsa_keygen, rsa_encrypt, rsa_decrypt
     
@@ -295,7 +298,10 @@ def pa15_sign():
 @app.route('/api/pa16/demo', methods=['POST'])
 def pa16_demo():
     data = request.json or {}
-    message = data.get('message', 42)
+    try:
+        message = int(data.get('message', 42))
+    except (ValueError, TypeError):
+        message = 42
     
     from crypto.pa16_elgamal import elgamal_keygen, elgamal_encrypt, elgamal_decrypt
     

@@ -3,6 +3,23 @@ import './App.css'
 
 const API = 'http://localhost:5000/api'
 
+/**
+ * Safe fetch wrapper: always resolves (never leaves loading=true).
+ * Returns parsed JSON on success, or an error object on failure.
+ */
+async function safeFetch(url, options = {}) {
+  try {
+    const r = await fetch(url, options)
+    if (!r.ok) {
+      const text = await r.text().catch(() => 'Unknown server error')
+      return { success: false, error: `HTTP ${r.status}: ${text.slice(0, 200)}` }
+    }
+    return await r.json()
+  } catch (e) {
+    return { success: false, error: `Network error: ${e.message}. Is the API running? (python3 api/server.py)` }
+  }
+}
+
 function Section({ title, children, id }) {
   const [open, setOpen] = useState(false)
   return (
@@ -19,6 +36,9 @@ function Section({ title, children, id }) {
 function ResultBox({ data, loading }) {
   if (loading) return <div className="result loading">⏳ Computing...</div>
   if (!data) return null
+  if (data.success === false) {
+    return <pre className="result error">❌ Error: {data.error || 'Unknown error'}{data.traceback ? '\n\n' + data.traceback : ''}</pre>
+  }
   return <pre className="result">{JSON.stringify(data, null, 2)}</pre>
 }
 
@@ -33,8 +53,8 @@ function PA1Demo() {
   const [len, setLen] = useState(128)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa1/prg`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({seed, output_length: len}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa1/prg`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({seed, output_length: len}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <label>Seed (hex): <input value={seed} onChange={e=>setSeed(e.target.value)} className="hex-input"/></label>
@@ -50,8 +70,8 @@ function PA2Demo() {
   const [query, setQuery] = useState(5)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa2/ggm`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key, query, depth:4}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa2/ggm`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key, query, depth:4}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <label>Key (hex): <input value={key} onChange={e=>setKey(e.target.value)} className="hex-input"/></label>
@@ -61,12 +81,28 @@ function PA2Demo() {
   </div>)
 }
 
+function PA3Demo() {
+  const [result, setResult] = useState(null), [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('Hello, World!')
+  const run = async () => {
+    setLoading(true)
+    const data = await safeFetch(`${API}/pa3/encrypt`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message}) })
+    setResult(data); setLoading(false)
+  }
+  return (<div>
+    <p className="info">Enc(k,m) = (r, F_k(r) ⊕ m). Random nonce ensures CPA security.</p>
+    <label>Message: <input value={message} onChange={e=>setMessage(e.target.value)} className="hex-input"/></label>
+    <DemoButton label="Encrypt & Decrypt" onClick={run} loading={loading}/>
+    <ResultBox data={result} loading={loading}/>
+  </div>)
+}
+
 function PA4Demo() {
   const [result, setResult] = useState(null), [loading, setLoading] = useState(false)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa4/ecb_penguin`, { method:'POST' })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa4/ecb_penguin`, { method:'POST' })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <DemoButton label="Run ECB Penguin Demo" onClick={run} loading={loading}/>
@@ -78,8 +114,8 @@ function PA6Demo() {
   const [result, setResult] = useState(null), [loading, setLoading] = useState(false)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa6/malleability`, { method:'POST' })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa6/malleability`, { method:'POST' })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <p className="info">CPA encryption is <strong>malleable</strong> — flipping a ciphertext bit flips the plaintext bit. CCA (Encrypt-then-MAC) detects and rejects tampering.</p>
@@ -93,8 +129,8 @@ function PA9Demo() {
   const [bits, setBits] = useState(12)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa9/attack`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({output_bits: bits}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa9/attack`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({output_bits: bits}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <label>Output bits n: <input type="range" min="8" max="16" value={bits} onChange={e=>setBits(+e.target.value)}/> {bits} (expected collision at ~2^{bits/2} = {Math.round(Math.pow(2, bits/2))} evals)</label>
@@ -109,8 +145,8 @@ function PA13Demo() {
   const [rounds, setRounds] = useState(10)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa13/test`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({n: parseInt(n), rounds}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa13/test`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({n: parseInt(n), rounds}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <label>Number to test: <input value={n} onChange={e=>setN(e.target.value)} className="hex-input"/></label>
@@ -126,8 +162,8 @@ function PA18Demo() {
   const [m0, setM0] = useState(42), [m1, setM1] = useState(99), [b, setB] = useState(0)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa18/ot`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({m0,m1,b}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa18/ot`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({m0,m1,b}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <div className="ot-panels">
@@ -144,8 +180,8 @@ function PA19Demo() {
   const [a, setA] = useState(1), [b, setB] = useState(1)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa19/and`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({a,b}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa19/and`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({a,b}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <div className="ot-panels">
@@ -162,8 +198,8 @@ function PA20Demo() {
   const [x, setX] = useState(7), [y, setY] = useState(12)
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/pa20/millionaire`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({x,y,n:4}) })
-    setResult(await r.json()); setLoading(false)
+    const data = await safeFetch(`${API}/pa20/millionaire`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({x,y,n:4}) })
+    setResult(data); setLoading(false)
   }
   return (<div>
     <p className="info">Yao's Millionaire Problem: securely compute who is richer without revealing actual values.</p>
@@ -176,15 +212,22 @@ function PA20Demo() {
   </div>)
 }
 
-function SimpleDemo({ endpoint, label, info }) {
+function SimpleDemo({ endpoint, label, info, hasInput, inputLabel, inputPlaceholder }) {
   const [result, setResult] = useState(null), [loading, setLoading] = useState(false)
+  const [inputVal, setInputVal] = useState('')
   const run = async () => {
     setLoading(true)
-    const r = await fetch(`${API}/${endpoint}`, { method:'POST' })
-    setResult(await r.json()); setLoading(false)
+    const opts = { method: 'POST' }
+    if (hasInput && inputVal) {
+      opts.headers = { 'Content-Type': 'application/json' }
+      opts.body = JSON.stringify({ message: inputVal })
+    }
+    const data = await safeFetch(`${API}/${endpoint}`, opts)
+    setResult(data); setLoading(false)
   }
   return (<div>
     {info && <p className="info">{info}</p>}
+    {hasInput && <label>{inputLabel || 'Input'}: <input value={inputVal} onChange={e=>setInputVal(e.target.value)} placeholder={inputPlaceholder} className="hex-input"/></label>}
     <DemoButton label={label} onClick={run} loading={loading}/>
     <ResultBox data={result} loading={loading}/>
   </div>)
@@ -201,10 +244,10 @@ const REDUCTION_CHAIN = `OWF (PA#1) → PRG (PA#1) → PRF (PA#2) → CPA-Enc (P
 PKC: DH (PA#11) → RSA (PA#12) → CRT (PA#14) → Signatures (PA#15) → ElGamal (PA#16) → CCA-PKC (PA#17)
                    ↑                                                                          ↓
              Miller-Rabin (PA#13)                                                        OT (PA#18)
-                                                                                              ↓
-                                                                                    Secure AND (PA#19)
-                                                                                              ↓
-                                                                                   All 2-Party MPC (PA#20)`
+                                                                                               ↓
+                                                                                     Secure AND (PA#19)
+                                                                                               ↓
+                                                                                    All 2-Party MPC (PA#20)`
 
 function App() {
   const [foundation, setFoundation] = useState('AES')
@@ -236,24 +279,24 @@ function App() {
         <h2 className="part-title">Part I: Minicrypt Clique</h2>
         <Section title="PA#1 — One-Way Functions & PRG" id="pa1"><PA1Demo/></Section>
         <Section title="PA#2 — PRF via GGM Tree" id="pa2"><PA2Demo/></Section>
-        <Section title="PA#3 — CPA-Secure Encryption" id="pa3"><SimpleDemo endpoint="pa3/encrypt" label="Encrypt & Decrypt" info="Enc(k,m) = (r, F_k(r) ⊕ m). Random nonce ensures CPA security."/></Section>
+        <Section title="PA#3 — CPA-Secure Encryption" id="pa3"><PA3Demo/></Section>
         <Section title="PA#4 — Modes of Operation" id="pa4"><PA4Demo/></Section>
         <Section title="PA#5 — MACs (PRF-MAC, CBC-MAC)" id="pa5"><SimpleDemo endpoint="pa5/euf_cma" label="EUF-CMA Forgery Game" info="50 queries to MAC oracle, then 20 forgery attempts. Should all fail."/></Section>
         <Section title="PA#6 — CCA-Secure Encryption" id="pa6"><PA6Demo/></Section>
 
         <h2 className="part-title">Part II: Hashing & Data Integrity</h2>
-        <Section title="PA#7 — Merkle-Damgård Transform" id="pa7"><SimpleDemo endpoint="pa7/hash" label="Hash Step-by-Step" info="Generic hash framework: pad → compress → chain."/></Section>
+        <Section title="PA#7 — Merkle-Damgård Transform" id="pa7"><SimpleDemo endpoint="pa7/hash" label="Hash Step-by-Step" info="Generic hash framework: pad → compress → chain." hasInput inputLabel="Message" inputPlaceholder="Hello"/></Section>
         <Section title="PA#8 — DLP-Based CRHF" id="pa8"><SimpleDemo endpoint="pa8/avalanche" label="Avalanche Effect Demo" info="1-bit input change → ~50% output bits change."/></Section>
         <Section title="PA#9 — Birthday Attack" id="pa9"><PA9Demo/></Section>
         <Section title="PA#10 — HMAC + Encrypt-then-HMAC" id="pa10"><SimpleDemo endpoint="pa10/length_extension" label="Length Extension vs HMAC" info="Naive H(k||m) is vulnerable; HMAC's double-hash blocks the attack."/></Section>
 
         <h2 className="part-title">Part III: Public-Key Cryptography</h2>
         <Section title="PA#11 — Diffie-Hellman Key Exchange" id="pa11"><SimpleDemo endpoint="pa11/exchange" label="DH Key Exchange" info="Alice & Bob establish shared secret over public channel."/></Section>
-        <Section title="PA#12 — Textbook RSA" id="pa12"><SimpleDemo endpoint="pa12/demo" label="RSA Encrypt/Decrypt" info="c = m^e mod N, m = c^d mod N"/></Section>
+        <Section title="PA#12 — Textbook RSA" id="pa12"><SimpleDemo endpoint="pa12/demo" label="RSA Encrypt/Decrypt" info="c = m^e mod N, m = c^d mod N" hasInput inputLabel="Message (integer)" inputPlaceholder="42"/></Section>
         <Section title="PA#13 — Miller-Rabin Primality" id="pa13"><PA13Demo/></Section>
         <Section title="PA#14 — CRT & Håstad Attack" id="pa14"><SimpleDemo endpoint="pa14/hastad" label="Håstad Broadcast Attack" info="3 recipients, same message, e=3 → CRT recovers plaintext!"/></Section>
-        <Section title="PA#15 — Digital Signatures" id="pa15"><SimpleDemo endpoint="pa15/sign" label="Sign & Verify" info="RSA signature: sig = H(m)^d mod N"/></Section>
-        <Section title="PA#16 — ElGamal PKC" id="pa16"><SimpleDemo endpoint="pa16/demo" label="ElGamal Demo" info="Encrypt: (g^r, m·h^r). Decrypt: c2 · c1^{-x}."/></Section>
+        <Section title="PA#15 — Digital Signatures" id="pa15"><SimpleDemo endpoint="pa15/sign" label="Sign & Verify" info="RSA signature: sig = H(m)^d mod N" hasInput inputLabel="Message" inputPlaceholder="Hello, World!"/></Section>
+        <Section title="PA#16 — ElGamal PKC" id="pa16"><SimpleDemo endpoint="pa16/demo" label="ElGamal Demo" info="Encrypt: (g^r, m·h^r). Decrypt: c2 · c1^{-x}." hasInput inputLabel="Message (integer)" inputPlaceholder="42"/></Section>
         <Section title="PA#17 — CCA-Secure PKC" id="pa17"><SimpleDemo endpoint="pa6/cca2_game" label="CCA2 Game" info="ElGamal + RSA Signatures = CCA-secure PKC"/></Section>
 
         <h2 className="part-title">Part IV: Secure Multi-Party Computation</h2>

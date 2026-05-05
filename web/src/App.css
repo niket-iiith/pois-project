@@ -141,6 +141,7 @@ input[type="range"] { vertical-align: middle; accent-color: var(--accent); }
   color: var(--success);
 }
 .result.loading { color: var(--warn); text-align: center; padding: 24px; }
+.result.error { color: var(--danger); border-left: 3px solid var(--danger); }
 
 /* Info text */
 .info { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }

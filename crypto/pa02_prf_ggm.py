@@ -145,7 +145,7 @@ class GGM_PRF:
             })
         
         return {
-            'output': current,
+            'output': current.hex(),
             'output_hex': current.hex(),
             'path': path,
             'input_bits': bits
